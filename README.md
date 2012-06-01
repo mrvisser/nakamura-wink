@@ -39,7 +39,7 @@ public class HelloServiceImpl implements HelloService {
 	
 	@Override
 	@GET @Path("hello")
-	public String hello(@String who) {
+	public String hello(@QueryParam("who") String who) {
 		return String.format("Hello, %s!", who);
 	}
 }
@@ -49,6 +49,12 @@ public class HelloServiceImpl implements HelloService {
 2. The javax.ws.rs property registers this particular export of Object.class as a JAX-RS resource
 3. The `@Path("say")` class annotation will register this resource beneath the configured top-level JAX-RS services context (e.g., `/api/say`); this is configurable VIA the NakamuraWinkServlet component in the felix console, defaults to `/api`
 4. The rest falls under the realm of standard JAX-RS, here is a more thorough example of how JAX-RS can be used: http://www.ibm.com/developerworks/web/library/wa-apachewink1/#wink_implementation
+
+Once this is complete, you can access the service by visiting:
+
+`/api/say/helloworld`; or
+`/api/say/hello?who=Branden`
+
 
 Here's a demonstration of using the Jackson serialization to produce JSON from simple Java objects: http://www.youtube.com/watch?v=WeUePcMOP5c
 
