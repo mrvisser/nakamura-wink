@@ -39,6 +39,9 @@ import java.util.LinkedList;
 import java.util.List;
 
 import javax.servlet.Servlet;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.Application;
 import javax.ws.rs.core.Response.ResponseBuilder;
 import javax.ws.rs.core.UriBuilder;
@@ -54,12 +57,13 @@ import javax.ws.rs.ext.RuntimeDelegate;
 @Property(name="alias", label="API Context Path", value=NakamuraWinkServlet.DEFAULT_API_CONTEXT,
   description="The top-level context from which to access the Nakamura APIs. Must start with a '/'")
 public class NakamuraWinkServlet extends RestServlet {
+
   private static final long serialVersionUID = 1L;
 
   public static final String DEFAULT_API_CONTEXT = "/api";
 
   private static final MessageBodyWriter<Object> PROVIDER_JSON = createJsonProvider();
-  
+
   /**
    * This static block is necessary to ensure that the JAX-RS API package does not try
    * and load the com.sun...RuntimeDelegateImpl implementation that is not on our
@@ -91,7 +95,7 @@ public class NakamuraWinkServlet extends RestServlet {
       referenceInterface=Object.class, target="(javax.ws.rs=true)", bind="bindApplication",
       unbind="unbindApplication")
   protected List<Object> applications = new LinkedList<Object>();
-
+  
   @Override
   protected DeploymentConfiguration getDeploymentConfiguration() {
     // note: we can't bootstrap this in the activate method because it needs
@@ -105,6 +109,25 @@ public class NakamuraWinkServlet extends RestServlet {
       }
     }
     return deploymentConfiguration;
+  }
+  
+  /**
+   * {@inheritDoc}
+   * @see org.apache.wink.server.internal.servlet.RestServlet#service(javax.servlet.http.HttpServletRequest, javax.servlet.http.HttpServletResponse)
+   */
+  @Override
+  protected void service(HttpServletRequest httpServletRequest,
+      HttpServletResponse httpServletResponse) throws ServletException, IOException {
+    // we need to take over the thread-context from the jetty bundle as the Wink
+    // internals don't specify the proper class-loader when doing JAX-B stuff.
+    ClassLoader prevClassLoader = Thread.currentThread().getContextClassLoader();
+    try {
+      Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
+      super.service(httpServletRequest, httpServletResponse);
+    } finally {
+      Thread.currentThread().setContextClassLoader(prevClassLoader);
+    }
+    
   }
   
   protected void bindApplication(Object obj) {
