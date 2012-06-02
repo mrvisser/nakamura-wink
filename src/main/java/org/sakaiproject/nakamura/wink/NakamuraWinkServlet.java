@@ -35,8 +35,9 @@ import org.codehaus.jackson.map.introspect.JacksonAnnotationIntrospector;
 import org.codehaus.jackson.xc.JaxbAnnotationIntrospector;
 
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedList;
-import java.util.List;
 
 import javax.servlet.Servlet;
 import javax.servlet.ServletException;
@@ -94,7 +95,7 @@ public class NakamuraWinkServlet extends RestServlet {
   @Reference(cardinality=ReferenceCardinality.OPTIONAL_MULTIPLE, policy=ReferencePolicy.DYNAMIC,
       referenceInterface=Object.class, target="(javax.ws.rs=true)", bind="bindApplication",
       unbind="unbindApplication")
-  protected List<Object> applications = new LinkedList<Object>();
+  protected Collection<Object> applications = Collections.synchronizedList(new LinkedList<Object>());
   
   @Override
   protected DeploymentConfiguration getDeploymentConfiguration() {
@@ -132,17 +133,20 @@ public class NakamuraWinkServlet extends RestServlet {
   
   protected void bindApplication(Object obj) {
     applications.add(obj);
-    getDeploymentConfiguration().addApplication(createApplication(obj), false);
+    if (deploymentConfiguration != null) {
+      deploymentConfiguration.addApplication(createApplication(obj), false);
+    }
   }
   
   protected void unbindApplication(Object obj) throws ClassNotFoundException,
       InstantiationException, IllegalAccessException, IOException {
     applications.remove(obj);
-    
     // swap in a new requestProcessor with a rebuilt configuration
-    deploymentConfiguration = internalCreateDeploymentConfiguration();
-    RequestProcessor requestProcessor = createRequestProcessor();
-    storeRequestProcessorOnServletContext(requestProcessor);
+    if (deploymentConfiguration != null) {
+      deploymentConfiguration = internalCreateDeploymentConfiguration();
+      RequestProcessor requestProcessor = createRequestProcessor();
+      storeRequestProcessorOnServletContext(requestProcessor);
+    }
   }
   
   protected Application createApplication(Object obj) {
@@ -166,7 +170,6 @@ public class NakamuraWinkServlet extends RestServlet {
   private DeploymentConfiguration internalCreateDeploymentConfiguration() {
     try {
       DeploymentConfiguration result = super.getDeploymentConfiguration();
-      
       // add the jackson provider that has jaxb compatibility
       result.getProvidersRegistry().addProvider(PROVIDER_JSON, 100);
       
